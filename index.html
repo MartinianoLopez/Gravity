@@ -1,0 +1,1338 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Gravity</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #06060a;
+        --surface: rgba(255, 255, 255, 0.05);
+        --border: rgba(255, 255, 255, 0.11);
+        --border-hi: rgba(255, 255, 255, 0.55);
+        --text: rgba(255, 255, 255, 0.38);
+        --text-hi: rgba(255, 255, 255, 0.92);
+        --active-bg: rgba(255, 255, 255, 0.09);
+        --font: "DM Mono", monospace;
+        --glow: rgba(180, 160, 255, 0.18);
+      }
+
+      body {
+        background: var(--bg);
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        font-family: var(--font);
+      }
+
+      /* ── BACKGROUND ── */
+      #bg-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+      }
+
+      /* Radial nebula glow at center */
+      #bg-layer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse 60% 45% at 50% 50%,
+            rgba(60, 40, 120, 0.13) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 30% 30% at 30% 60%,
+            rgba(30, 60, 100, 0.08) 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse 25% 25% at 70% 35%,
+            rgba(80, 40, 100, 0.07) 0%,
+            transparent 60%
+          );
+      }
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      /* ── CANVAS ── */
+      #canvasContainer {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+      }
+
+      canvas {
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        display: block;
+        margin: 5vw;
+        position: relative;
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+      }
+
+      canvas:hover {
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.04),
+          0 0 20px rgba(140, 100, 255, 0.12),
+          0 0 40px rgba(80, 60, 160, 0.08),
+          inset 0 0 40px rgba(60, 40, 120, 0.06);
+      }
+
+      /* Canvas ambient glow ring */
+      #canvas-glow {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        background: radial-gradient(
+          circle,
+          transparent 40%,
+          rgba(95, 12, 228, 0.05) 70%,
+          transparent 100%
+        );
+        animation: pulse-glow 4s ease-in-out infinite;
+      }
+
+      @keyframes pulse-glow {
+        0%,
+        100% {
+          opacity: 0.6;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.01);
+        }
+      }
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      /* ── TOOLBAR (top right) ── */
+      #toolbar {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(6, 6, 10, 0.78);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 5px;
+        backdrop-filter: blur(20px);
+        z-index: 10;
+        box-shadow:
+          0 2px 24px rgba(0, 0, 0, 0.5),
+          0 0 0 0.5px rgba(255, 255, 255, 0.04);
+        transition: box-shadow 0.3s;
+      }
+
+      #toolbar:hover {
+        box-shadow:
+          0 2px 32px rgba(0, 0, 0, 0.6),
+          0 0 0 0.5px rgba(255, 255, 255, 0.07),
+          0 0 20px rgba(120, 80, 255, 0.06);
+      }
+
+      .sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+        margin: 0 3px;
+        flex-shrink: 0;
+      }
+
+      .btn {
+        width: 34px;
+        height: 30px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font);
+        font-size: 11px;
+        font-weight: 500;
+        transition:
+          color 0.15s,
+          border-color 0.15s,
+          background 0.15s,
+          box-shadow 0.15s,
+          transform 0.1s;
+        flex-shrink: 0;
+        user-select: none;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Shimmer effect on hover */
+      .btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          105deg,
+          transparent 30%,
+          rgba(255, 255, 255, 0.08) 50%,
+          transparent 70%
+        );
+        transform: translateX(-100%);
+        transition: transform 0.4s;
+        pointer-events: none;
+      }
+
+      .btn:hover::after {
+        transform: translateX(100%);
+      }
+
+      .btn:hover {
+        color: var(--text-hi);
+        background: var(--surface);
+        border-color: var(--border);
+        box-shadow: 0 0 8px rgba(180, 140, 255, 0.08);
+      }
+
+      .btn:active {
+        transform: scale(0.94);
+      }
+
+      .btn.active {
+        color: var(--text-hi);
+        background: var(--active-bg);
+        border-color: var(--border-hi);
+        box-shadow:
+          0 0 10px rgba(200, 160, 255, 0.12),
+          inset 0 0 6px rgba(255, 255, 255, 0.04);
+      }
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      /* ── RIGHT PANEL ── */
+      #rightPanel {
+        position: fixed;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        background: rgba(6, 6, 10, 0.78);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 8px;
+        backdrop-filter: blur(20px);
+        z-index: 10;
+        box-shadow:
+          0 2px 32px rgba(0, 0, 0, 0.5),
+          0 0 0 0.5px rgba(255, 255, 255, 0.04);
+        transition: box-shadow 0.3s;
+      }
+
+      #rightPanel:hover {
+        box-shadow:
+          0 2px 40px rgba(0, 0, 0, 0.6),
+          0 0 0 0.5px rgba(255, 255, 255, 0.07),
+          0 0 24px rgba(120, 80, 255, 0.07);
+      }
+
+      .panel-sep {
+        width: 28px;
+        height: 1px;
+        background: var(--border);
+        margin: 8px 0;
+      }
+
+      /* ── VERTICAL SLIDERS ── */
+      .slider-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .slider-label {
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        color: var(--text);
+        text-transform: uppercase;
+        cursor: default;
+        user-select: none;
+        transition: color 0.2s;
+      }
+
+      .slider-group:hover .slider-label {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .vslider-track {
+        position: relative;
+        width: 4px;
+        height: 72px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+        transition: background 0.2s;
+      }
+
+      .slider-group:hover .vslider-track {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .vslider-fill {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 4px;
+        background: linear-gradient(
+          to top,
+          rgba(200, 160, 255, 0.7),
+          rgba(255, 255, 255, 0.45)
+        );
+        pointer-events: none;
+        transition: background 0.3s;
+        box-shadow: 0 0 6px rgba(180, 140, 255, 0.3);
+      }
+
+      input[type="range"].vslider {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        -webkit-appearance: none;
+        appearance: none;
+        writing-mode: vertical-lr;
+        direction: rtl;
+        width: 28px;
+        height: 100%;
+        background: transparent;
+        cursor: pointer;
+        margin: 0;
+        padding: 0;
+        z-index: 2;
+      }
+
+      input[type="range"].vslider::-webkit-slider-runnable-track {
+        background: transparent;
+      }
+      input[type="range"].vslider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: none;
+        box-shadow:
+          0 0 8px rgba(200, 160, 255, 0.6),
+          0 0 2px rgba(255, 255, 255, 0.8);
+        cursor: pointer;
+        transition:
+          box-shadow 0.2s,
+          transform 0.1s;
+      }
+      input[type="range"].vslider:hover::-webkit-slider-thumb {
+        box-shadow:
+          0 0 12px rgba(200, 160, 255, 0.9),
+          0 0 4px rgba(255, 255, 255, 1);
+      }
+      input[type="range"].vslider:focus {
+        outline: none;
+      }
+      input[type="range"].vslider::-moz-range-track {
+        background: transparent;
+      }
+      input[type="range"].vslider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: none;
+        box-shadow: 0 0 8px rgba(200, 160, 255, 0.6);
+      }
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      /* ── BODY BUTTONS ── */
+      .body-btn {
+        width: 52px;
+        height: 52px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          border-color 0.15s,
+          background 0.15s,
+          box-shadow 0.15s,
+          transform 0.12s;
+        position: relative;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .body-btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at 50% 50%,
+          rgba(255, 255, 255, 0.1) 0%,
+          transparent 70%
+        );
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
+
+      .body-btn:hover::after {
+        opacity: 1;
+      }
+      .body-btn:active {
+        transform: scale(0.9);
+      }
+
+      .body-btn:hover {
+        background: var(--surface);
+        border-color: var(--border);
+        box-shadow: 0 0 12px rgba(180, 140, 255, 0.1);
+      }
+
+      .body-btn.active {
+        background: var(--active-bg);
+        border-color: var(--border-hi);
+        box-shadow:
+          0 0 16px rgba(200, 160, 255, 0.18),
+          inset 0 0 8px rgba(255, 255, 255, 0.04);
+      }
+
+      /* Planet btn glow on hover */
+      .body-btn:hover svg circle {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+      }
+      /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
+      /* ── GRAVITY WORDMARK ── */
+      #wordmark {
+        position: fixed;
+        bottom: 28px;
+        right: 32px;
+        z-index: 10;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      #wordmark .title {
+        font-family: "Space Mono", monospace;
+        font-weight: 700;
+        font-size: 36px;
+        letter-spacing: 0.18em;
+        color: rgba(255, 255, 255, 0.24);
+        line-height: 1;
+        display: block;
+      }
+
+      #wordmark .sub {
+        font-family: var(--font);
+        font-size: 9px;
+        letter-spacing: 0.35em;
+        color: rgba(255, 255, 255, 0.168);
+        text-transform: uppercase;
+        display: block;
+        margin-top: 4px;
+        padding-left: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--───────────────────────────────────────────────────────────────────────────────────────────────────-->
+    <div id="canvasContainer">
+      <div id="canvas-glow"></div>
+      <canvas id="canvas"></canvas>
+    </div>
+    <!--───────────────────────────────────────────────────────────────────────────────────────────────────-->
+    <!-- TOOLBAR -->
+    <div id="toolbar">
+      <button
+        class="btn"
+        id="btnStick"
+        title="Stick"
+        onclick="
+          Stick = !Stick;
+          this.classList.toggle('active', Stick);
+          document.getElementById('inputStick').checked = Stick;
+        "
+      >
+        S
+      </button>
+      <button
+        class="btn"
+        id="btnFix"
+        title="Fix"
+        onclick="
+          Fix = !Fix;
+          this.classList.toggle('active', Fix);
+          document.getElementById('inputFix').checked = Fix;
+        "
+      >
+        F
+      </button>
+      <div class="sep"></div>
+      <button
+        class="btn"
+        id="spd1"
+        title="Slow"
+        onclick="
+          T = 0.5;
+          document
+            .querySelectorAll('#spd1,#spd2,#spd3')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+          <polygon points="2,1 10,6 2,11" />
+        </svg>
+      </button>
+      <button
+        class="btn active"
+        id="spd2"
+        title="Med"
+        onclick="
+          T = 1;
+          document
+            .querySelectorAll('#spd1,#spd2,#spd3')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="11" height="11" viewBox="0 0 14 12" fill="currentColor">
+          <polygon points="1,1 7,6 1,11" />
+          <polygon points="7,1 13,6 7,11" />
+        </svg>
+      </button>
+      <button
+        class="btn"
+        id="spd3"
+        title="Fast"
+        onclick="
+          T = 3;
+          document
+            .querySelectorAll('#spd1,#spd2,#spd3')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="13" height="11" viewBox="0 0 18 12" fill="currentColor">
+          <polygon points="1,1 7,6 1,11" />
+          <polygon points="7,1 13,6 7,11" />
+          <polygon points="12,1 18,6 12,11" />
+        </svg>
+      </button>
+      <div class="sep"></div>
+      <button
+        class="btn"
+        id="pauseBtn"
+        title="Pause"
+        onmousedown="
+          T = T !== 0 ? ((oldTime = T), 0) : oldTime;
+          this.classList.toggle('active', T === 0);
+          document.getElementById('pauseIcon').innerHTML =
+            T === 0
+              ? '&lt;polygon points=&quot;2,1 10,6 2,11&quot;/&gt;'
+              : '&lt;rect x=&quot;1.5&quot; y=&quot;0.5&quot; width=&quot;3.5&quot; height=&quot;11&quot; rx=&quot;1&quot;/&gt;&lt;rect x=&quot;7&quot; y=&quot;0.5&quot; width=&quot;3.5&quot; height=&quot;11&quot; rx=&quot;1&quot;/&gt;';
+        "
+      >
+        <svg
+          id="pauseIcon"
+          width="11"
+          height="11"
+          viewBox="0 0 12 12"
+          fill="currentColor"
+        >
+          <rect x="1.5" y="0.5" width="3.5" height="11" rx="1" />
+          <rect x="7" y="0.5" width="3.5" height="11" rx="1" />
+        </svg>
+      </button>
+      <button
+        class="btn"
+        id="restartBtn"
+        title="Restart"
+        onmousedown="
+          astros = [];
+          scale = 1;
+          offsetX = 0;
+          offsetY = 0;
+        "
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="1,2 1,5.5 4.5,5.5" />
+          <path d="M2 8A4.5 4.5 0 1 0 2.7 4.8" />
+        </svg>
+      </button>
+    </div>
+    <!--───────────────────────────────────────────────────────────────────────────────────────────────────-->
+    <!-- RIGHT PANEL -->
+    <div id="rightPanel">
+      <div class="slider-group">
+        <span class="slider-label">S</span>
+        <div class="vslider-track">
+          <div class="vslider-fill" id="fillS" style="height: 10%"></div>
+          <input
+            type="range"
+            class="vslider"
+            id="inputS"
+            min="1"
+            max="10000"
+            value="1000"
+            oninput="
+              S = +this.value;
+              document.getElementById('fillS').style.height =
+                (S / 10000) * 100 + '%';
+            "
+          />
+        </div>
+      </div>
+      <div class="panel-sep"></div>
+      <div class="slider-group">
+        <span class="slider-label">M</span>
+        <div class="vslider-track short">
+          <div class="vslider-fill" id="fillM" style="height: 66.3%"></div>
+          <input
+            type="range"
+            class="vslider"
+            id="inputM"
+            min="1"
+            max="3000"
+            value="1989"
+            oninput="
+              M = +this.value;
+              document.getElementById('fillM').style.height =
+                (M / 3000) * 100 + '%';
+              document
+                .querySelectorAll('.body-btn')
+                .forEach((b) => b.classList.remove('active'));
+            "
+          />
+        </div>
+      </div>
+      <div class="panel-sep"></div>
+      <button
+        class="body-btn"
+        id="bodyMoon"
+        title="Moon"
+        onclick="
+          M = 10;
+          document.getElementById('inputM').value = 10;
+          document.getElementById('fillM').style.height =
+            (10 / 3000) * 100 + '%';
+          document
+            .querySelectorAll('.body-btn')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <circle cx="5" cy="5" r="3" fill="white" opacity="0.88" />
+        </svg>
+      </button>
+      <button
+        class="body-btn"
+        id="bodyEarth"
+        title="Earth"
+        onclick="
+          M = 100;
+          document.getElementById('inputM').value = 100;
+          document.getElementById('fillM').style.height =
+            (100 / 3000) * 100 + '%';
+          document
+            .querySelectorAll('.body-btn')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="10" r="8" fill="white" opacity="0.88" />
+        </svg>
+      </button>
+      <button
+        class="body-btn"
+        id="bodyJupiter"
+        title="Jupiter"
+        onclick="
+          M = 500;
+          document.getElementById('inputM').value = 500;
+          document.getElementById('fillM').style.height =
+            (500 / 3000) * 100 + '%';
+          document
+            .querySelectorAll('.body-btn')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="12" fill="white" opacity="1" />
+          <ellipse
+            cx="16"
+            cy="16"
+            rx="16"
+            ry="4"
+            stroke="white"
+            stroke-width="1"
+            fill="none"
+            opacity="0.42"
+          />
+        </svg>
+      </button>
+      <button
+        class="body-btn active"
+        style="width: 56px; height: 56px"
+        id="bodySun"
+        title="Sun"
+        onclick="
+          M = 1989;
+          document.getElementById('inputM').value = 1989;
+          document.getElementById('fillM').style.height =
+            (1989 / 3000) * 100 + '%';
+          document
+            .querySelectorAll('.body-btn')
+            .forEach((b) => b.classList.remove('active'));
+          this.classList.add('active');
+        "
+      >
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="24" r="16" fill="white" opacity="1" />
+          <line
+            x1="24"
+            y1="4"
+            x2="24"
+            y2="0"
+            stroke="white"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            opacity="0.55"
+          />
+          <line
+            x1="24"
+            y1="44"
+            x2="24"
+            y2="48"
+            stroke="white"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            opacity="0.55"
+          />
+          <line
+            x1="4"
+            y1="24"
+            x2="0"
+            y2="24"
+            stroke="white"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            opacity="0.55"
+          />
+          <line
+            x1="44"
+            y1="24"
+            x2="48"
+            y2="24"
+            stroke="white"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            opacity="0.55"
+          />
+          <line
+            x1="9.5"
+            y1="9.5"
+            x2="7"
+            y2="7"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            opacity="0.35"
+          />
+          <line
+            x1="38.5"
+            y1="38.5"
+            x2="41"
+            y2="41"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            opacity="0.35"
+          />
+          <line
+            x1="38.5"
+            y1="9.5"
+            x2="41"
+            y2="7"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            opacity="0.35"
+          />
+          <line
+            x1="9.5"
+            y1="38.5"
+            x2="7"
+            y2="41"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            opacity="0.35"
+          />
+        </svg>
+      </button>
+    </div>
+    <!--───────────────────────────────────────────────────────────────────────────────────────────────────-->
+    <!-- GRAVITY WORDMARK -->
+    <div id="wordmark">
+      <span class="title">GRAVITY</span>
+      <span class="sub">n-body simulation</span>
+    </div>
+
+    <script>
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // Defaults
+      const m = 1989;
+      const v = 0;
+      const g = 6.67;
+      const s = 1000;
+      const t = 1;
+      // Variables
+      let M = 1989;
+      let V = 0;
+      let G = 6.67;
+      let S = 1000;
+      let T = 1;
+      let rho = 0.1;
+      let Stick = false;
+      let Fix = false;
+
+      // canvas
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // downscaling
+      let dpr = window.devicePixelRatio || 2;
+      canvas.width = (window.innerHeight / 1.1) * dpr;
+      canvas.height = (window.innerHeight / 1.1) * dpr;
+      canvas.style.width = window.innerHeight / 1.1 + "px";
+      canvas.style.height = window.innerHeight / 1.1 + "px";
+      ctx.scale(dpr, dpr);
+
+      let scale = 1;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      canvas.addEventListener("wheel", function (e) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        offsetX = e.clientX - (e.clientX - offsetX) * zoomFactor;
+        offsetY = e.clientY - (e.clientY - offsetY) * zoomFactor;
+        scale *= zoomFactor;
+      });
+
+      // validations
+      function validateNumber(value, fallback) {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? fallback : parsed;
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // objects
+      astros = [];
+
+      class astro {
+        constructor(x, y, M, vX, vY) {
+          this.posX = x;
+          this.posY = y;
+          this.M = M;
+          this.vX = vX;
+          this.vY = vY;
+          this.R = Math.cbrt((3 * this.M) / (4 * Math.PI * rho));
+          this.history = [{ x: x, y: y }];
+        }
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // add astros
+      let isDragging = false;
+      let mousedown = { x: 0, y: 0 };
+      let mousemove = { x: 0, y: 0 };
+
+      function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left - offsetX) / scale,
+          y: (e.clientY - rect.top - offsetY) / scale,
+        };
+      }
+
+      canvas.addEventListener("mousedown", function (e) {
+        if (e.button === 0) {
+          const pos = getCanvasPos(e);
+          mousedown = { x: pos.x, y: pos.y };
+          isDragging = true;
+          oldTime = T;
+          T = 0;
+        }
+      });
+      let addPath = null;
+      canvas.addEventListener("mousemove", function (e) {
+        const pos = getCanvasPos(e);
+        mousemove = { x: pos.x, y: pos.y };
+        if (isDragging) {
+          let vX = (mousedown.x - mousemove.x) * -0.035;
+          let vY = (mousedown.y - mousemove.y) * -0.035;
+          if (V != 0) {
+            const mag = Math.sqrt(vX * vX + vY * vY);
+            if (mag != 0) {
+              vX = (vX / mag) * V;
+              vY = (vY / mag) * V;
+            }
+          }
+          addPath = launchPrediction(
+            new astro(mousedown.x, mousedown.y, M, vX, vY),
+          );
+        }
+      });
+
+      canvas.addEventListener("mouseout", function (e) {
+        isDragging = false;
+      });
+
+      canvas.addEventListener("mouseup", function (e) {
+        if (e.button === 0) {
+          if (isDragging) {
+            const pos = getCanvasPos(e);
+            mouseup = { x: pos.x, y: pos.y };
+            vX = (mousedown.x - mouseup.x) * -0.035;
+            vY = (mousedown.y - mouseup.y) * -0.035;
+            if (V != 0) {
+              const magnitude = Math.sqrt(vX * vX + vY * vY);
+              if (magnitude != 0) {
+                vX = (vX / magnitude) * V;
+                vY = (vY / magnitude) * V;
+              }
+            }
+            astros.push(new astro(mousedown.x, mousedown.y, M, vX, vY));
+          }
+          isDragging = false;
+          addPath = null;
+        }
+        T = oldTime;
+      });
+
+      function launchPrediction(astro, maxSteps = 600) {
+        const path = [];
+        const simAstro = { ...astro };
+        const simOthers = astros
+          .filter((b) => b !== astro)
+          .map((b) => ({ ...b }));
+
+        const originX = astro.posX;
+        const originY = astro.posY;
+        const minReturnDist = astro.R * 2;
+
+        for (let step = 0; step < maxSteps; step++) {
+          path.push({ x: simAstro.posX, y: simAstro.posY });
+
+          if (step > 30) {
+            const dx = simAstro.posX - originX;
+            const dy = simAstro.posY - originY;
+            if (dx * dx + dy * dy < minReturnDist * minReturnDist) break;
+          }
+          simOthers.forEach((b) => {
+            const dx = b.posX - simAstro.posX;
+            const dy = b.posY - simAstro.posY;
+            const distSq = dx * dx + dy * dy;
+            const dist = Math.sqrt(distSq);
+            if (dist < 1) return;
+
+            const force = (G * b.M) / (distSq * dist);
+            simAstro.vX += force * dx;
+            simAstro.vY += force * dy;
+          });
+
+          simAstro.posX += simAstro.vX;
+          simAstro.posY += simAstro.vY;
+        }
+
+        return path;
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // delete astros
+      let isDeleting = false;
+      let worldX = null;
+      let worldY = null;
+      let deleteInterval = null;
+
+      canvas.addEventListener("mousedown", function (e) {
+        if (e.buttons === 2) {
+          const pos = getCanvasPos(e);
+          worldX = pos.x;
+          worldY = pos.y;
+          isDeleting = true;
+          deleteObjects(worldX, worldY);
+          deleteInterval = setInterval(() => {
+            deleteObjects(worldX, worldY);
+          }, 20);
+        }
+      });
+
+      canvas.addEventListener("mousemove", function (e) {
+        if (e.buttons === 2) {
+          const pos = getCanvasPos(e);
+          worldX = pos.x;
+          worldY = pos.y;
+          deleteObjects(worldX, worldY);
+        }
+      });
+
+      canvas.addEventListener("mouseup", function (e) {
+        isDeleting = false;
+        clearInterval(deleteInterval);
+        deleteInterval = null;
+      });
+
+      canvas.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      canvas.addEventListener("mouseout", function (e) {
+        isDeleting = false;
+        clearInterval(deleteInterval);
+        deleteInterval = null;
+      });
+
+      function deleteObjects(px, py) {
+        const radius = 20;
+        astros = astros.filter((astro) => {
+          const dx = astro.posX - px;
+          const dy = astro.posY - py;
+          return Math.sqrt(dx * dx + dy * dy) > radius;
+        });
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // simulation
+      let oldSpeedX = 0,
+        oldSpeedY = 0;
+      let massCenter = { x: 0, y: 0 };
+      let mainAstro = null;
+
+      function updateMovement() {
+        astros.forEach((astro) => {
+          while (astro.history.length >= S) astro.history.shift();
+          astro.history.push({ x: astro.posX, y: astro.posY });
+          astro.posX += astro.vX;
+          astro.posY += astro.vY;
+        });
+      }
+
+      function updateGravity() {
+        astros.forEach((a) => {
+          astros.forEach((b) => {
+            if (a === b) return;
+            const dx = b.posX - a.posX;
+            const dy = b.posY - a.posY;
+            const distSq = dx * dx + dy * dy;
+            const dist = Math.sqrt(distSq);
+            const force = (G * b.M) / (distSq * dist);
+            a.vX += force * dx;
+            a.vY += force * dy;
+          });
+        });
+      }
+
+      function updateMassCenter() {
+        massCenter = { x: 0, y: 0 };
+        let totalMass = 0;
+        astros.forEach((a) => {
+          massCenter.x += a.M * a.posX;
+          massCenter.y += a.M * a.posY;
+          totalMass += a.M;
+        });
+        massCenter.x /= totalMass;
+        massCenter.y /= totalMass;
+      }
+
+      function updateCollisions() {
+        const snapshot = [...astros];
+        const toDelete = new Set();
+        const toAdd = [];
+        for (let i = 0; i < snapshot.length; i++) {
+          if (toDelete.has(i)) continue;
+          for (let j = i + 1; j < snapshot.length; j++) {
+            if (toDelete.has(j)) continue;
+            const a = snapshot[i],
+              b = snapshot[j];
+            const dx = b.posX - a.posX,
+              dy = b.posY - a.posY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= a.R + b.R) {
+              toDelete.add(i);
+              toDelete.add(j);
+              toAdd.push(mergeAstros(a, b));
+            }
+          }
+        }
+        astros = astros.filter((_, i) => !toDelete.has(i));
+        astros.push(...toAdd);
+      }
+
+      function updateMainAstro() {
+        if (astros.length === 0) return;
+        mainAstro = astros.reduce(
+          (max, a) => (a.M > max.M ? a : max),
+          astros[0],
+        );
+      }
+
+      function updateFix() {
+        if (astros.length === 0) return;
+        if (Fix && oldSpeedX === 0 && oldSpeedY === 0) {
+          oldSpeedX = mainAstro.vX;
+          oldSpeedY = mainAstro.vY;
+          astros.forEach((a) => {
+            a.vX -= oldSpeedX;
+            a.vY -= oldSpeedY;
+            a.history = [];
+          });
+        }
+        if (Fix) {
+          mainAstro.vX = 0;
+          mainAstro.vY = 0;
+        }
+        if (!Fix && oldSpeedX !== 0) {
+          astros.forEach((a) => {
+            a.vX += oldSpeedX;
+            a.vY += oldSpeedY;
+            a.history = [];
+          });
+          oldSpeedX = 0;
+          oldSpeedY = 0;
+        }
+      }
+      function mergeAstros(a, b) {
+        const big = a.M >= b.M ? a : b;
+        const small = a.M < b.M ? a : b;
+
+        const newM = big.M + small.M * 0.7;
+
+        const newVX = (big.M * big.vX + small.M * small.vX) / newM;
+        const newVY = (big.M * big.vY + small.M * small.vY) / newM;
+
+        return {
+          posX: big.posX,
+          posY: big.posY,
+          vX: newVX,
+          vY: newVY,
+          M: newM,
+          R: Math.cbrt((3 * newM) / (4 * Math.PI * rho)),
+          history: [],
+        };
+      }
+      //simulation limits
+      const limits = 100000;
+      function deleteFarObjects() {
+        astros = astros.filter((astro) => {
+          return (
+            astro.posX <= limits &&
+            astro.posX >= -limits &&
+            astro.posY <= limits &&
+            astro.posY >= -limits
+          );
+        });
+      }
+      function update() {
+        updateMovement();
+        updateMassCenter();
+        updateGravity();
+        updateCollisions();
+        updateMainAstro();
+        updateFix();
+        deleteFarObjects();
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // drawing
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+
+        // unstick
+        if (Stick == false) {
+          ctx.translate(offsetX, offsetY);
+        } else {
+          //stick
+          if (mainAstro != null) {
+            const centerX = canvas.width / dpr / 2;
+            const centerY = canvas.height / dpr / 2;
+            offsetX = -mainAstro.posX * scale + centerX;
+            offsetY = -mainAstro.posY * scale + centerY;
+            ctx.translate(offsetX, offsetY);
+          }
+        }
+        ctx.scale(scale, scale);
+
+        // mass center
+        const size = 3 / scale;
+        ctx.beginPath();
+        ctx.moveTo(massCenter.x - size, massCenter.y);
+        ctx.lineTo(massCenter.x + size, massCenter.y);
+        ctx.moveTo(massCenter.x, massCenter.y - size);
+        ctx.lineTo(massCenter.x, massCenter.y + size);
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 1 / scale;
+        ctx.stroke();
+
+        astros.forEach((astro) => {
+          // orbit path
+          if (astro.history.length >= 2) {
+            for (let i = 1; i < astro.history.length; i++) {
+              const t = i / astro.history.length;
+              const alpha = t * 0.55;
+              ctx.beginPath();
+              ctx.moveTo(astro.history[i - 1].x, astro.history[i - 1].y);
+              ctx.lineTo(astro.history[i].x, astro.history[i].y);
+              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+              ctx.lineWidth = (0.5 + t * 1.0) / scale;
+              ctx.stroke();
+            }
+          }
+
+          // astros
+          const radius = Math.max(astro.R, 2);
+          const glowR = radius * 1.4;
+          const grad = ctx.createRadialGradient(
+            astro.posX,
+            astro.posY,
+            radius * 0.2,
+            astro.posX,
+            astro.posY,
+            glowR,
+          );
+          grad.addColorStop(0, "rgba(255,255,255,0.18)");
+          grad.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.beginPath();
+          ctx.arc(astro.posX, astro.posY, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // astros
+          ctx.beginPath();
+          ctx.arc(astro.posX, astro.posY, radius, 0, Math.PI * 2);
+          ctx.fillStyle = "white";
+          ctx.fill();
+
+          // smooth border
+          ctx.beginPath();
+          ctx.arc(astro.posX, astro.posY, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.35)";
+          ctx.lineWidth = 2 / scale;
+          ctx.stroke();
+        });
+
+        // drag: line + arrow + circle
+        if (isDragging) {
+          const dx = mousemove.x - mousedown.x;
+          const dy = mousemove.y - mousedown.y;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const ux = len > 0 ? dx / len : 0;
+          const uy = len > 0 ? dy / len : 0;
+
+          // circle
+          ctx.beginPath();
+          ctx.arc(mousedown.x, mousedown.y, 18 / scale, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.55)";
+          ctx.lineWidth = 1.2 / scale;
+          ctx.stroke();
+
+          // line of velocity
+          ctx.beginPath();
+          ctx.moveTo(mousedown.x, mousedown.y);
+          ctx.lineTo(mousemove.x, mousemove.y);
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 1.5 / scale;
+          ctx.setLineDash([4 / scale, 4 / scale]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // arrow of velocity
+          if (len > 10 / scale) {
+            const aSize = 7 / scale;
+            const ax = mousemove.x - ux * aSize;
+            const ay = mousemove.y - uy * aSize;
+            ctx.beginPath();
+            ctx.moveTo(mousemove.x, mousemove.y);
+            ctx.lineTo(ax - uy * aSize * 0.5, ay + ux * aSize * 0.5);
+            ctx.lineTo(ax + uy * aSize * 0.5, ay - ux * aSize * 0.5);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(255,255,255,0.75)";
+            ctx.fill();
+          }
+        }
+
+        // orbit prediction
+        if (isDragging && addPath != null && addPath.length >= 2) {
+          for (let i = 1; i < addPath.length; i++) {
+            const t = i / addPath.length;
+            const alpha = (1 - t) * 0.45;
+            ctx.beginPath();
+            ctx.moveTo(addPath[i - 1].x, addPath[i - 1].y);
+            ctx.lineTo(addPath[i].x, addPath[i].y);
+            ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+            ctx.lineWidth = 1 / scale;
+            ctx.setLineDash([3 / scale, 5 / scale]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        ctx.restore();
+      }
+      //─────────────────────────────────────────────────────────────────────────────────────────────────────
+      // time
+      let accumulator = 0;
+
+      function loop() {
+        accumulator += T;
+        while (accumulator >= 1) {
+          update();
+          accumulator--;
+        }
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      loop();
+    </script>
+  </body>
+</html>
