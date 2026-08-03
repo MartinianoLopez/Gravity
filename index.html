@@ -7,6 +7,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='10' fill='%23FFFFFF'/><circle cx='32' cy='32' r='28' fill='none' stroke='%23FFFFFF' stroke-width='4'/><circle cx='60' cy='32' r='10' fill=''/><circle cx='60' cy='32' r='6' fill='%23FFFFFF'/></svg>">
     <style>
       /* ──────────────────────────────────────────────────────────────────────────────────────────────── */
       *,
@@ -1184,7 +1185,7 @@
       //─────────────────────────────────────────────────────────────────────────────────────────────────────
       // drawing
       function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         ctx.save();
 
         // unstick
